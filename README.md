@@ -1,5 +1,65 @@
-## slugify и slugifyReverse
+# /src/utils/libs
 
+## getPosts.ts || getAllPosts.ts
+```ts
+import { getCollection } from "astro:content"
+
+// Вывод постов по новым датам и по статусу draft
+export const getAllPosts = async content => {
+	const posts = (await getCollection(content))
+		.filter(({ data }) => (import.meta.env.PROD ? data.draft !== true : true))
+		// "2024-02-21T15:30:00Z"
+		//	datePublished: z.union([z.string().datetime(), z.date()]),
+		.sort((a, b) => +new Date(b.data.pubDate) - +new Date(a.data.pubDate))
+	return posts
+}
+
+```
+
+## getTaxonomy.ts
+```ts
+import { getAllPosts } from "./getPosts"
+// Функция для получения всех таксономий
+const getTaxonomy = async (collection, name) => {
+	const singlePages = await getAllPosts(collection)
+	let taxonomies = []
+
+	// Сбор всех таксономий из постов
+	singlePages.forEach(page => {
+		const tagArray = page.data[name] // Получаем массив категорий из каждого поста
+		if (Array.isArray(tagArray)) {
+			// Проверяем, является ли это массивом
+			tagArray.forEach(tag => {
+				// Добавляем слаг в массив
+				taxonomies.push(tag) // Используем slugify для нормализации
+			})
+		}
+	})
+
+	// Удаляем дубликаты с помощью Set
+	const uniqueTaxonomies = [...new Set(taxonomies)]
+	return uniqueTaxonomies
+}
+
+export default getTaxonomy
+
+```
+
+## taxonomyFilter
+```ts
+import { slugify } from "./utils"
+
+const taxonomyFilter = (posts: any[], name: string, key: any) =>
+	posts.filter(
+		post =>
+			Array.isArray(post.data[name]) &&
+			post.data[name].map((name: string) => slugify(name)).includes(key),
+	)
+
+export default taxonomyFilter
+```
+
+## slugify и slugifyReverse (для тегов, [tag].astro и прочего)
 ```ts
 export function slugify(input) {
 	if (!input) return ""
@@ -123,3 +183,9 @@ export function slugifyReverse(input) {
 }
 
 ```
+
+## Как их использовать.
+**В проекте: internet-aiz:**
+- /pages/[tag].astro
+- /components/Tags.astro
+- и прочее...
